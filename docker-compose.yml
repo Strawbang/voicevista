@@ -1,0 +1,65 @@
+version: '3.8'
+services:
+  voicevista-db:
+    image: postgres:13
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: voicevista
+
+  frontend:
+    build:
+      context: ./voicevista-frontend
+    ports:
+      - '3000:80'
+    depends_on:
+      - api-gateway
+
+  message-queue:
+    image: rabbitmq:3-management
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+
+  auth-service:
+    image: your-auth-service-image
+    ports:
+      - '8000:8000'
+    environment:
+      DATABASE_URL: postgresql://postgres:example@voicevista-db:5432/voicevista
+
+  messaging-service:
+    image: your-messaging-service-image
+    ports:
+      - '8080:8080'
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://voicevista-db:5432/voicevista
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: example
+
+  api-gateway:
+    image: kong:3.0.0
+    ports:
+      - '8000:8000' # Port pour les requêtes API publiques
+      - '8443:8443' # Port HTTPS pour les requêtes API publiques
+      - '8001:8001' # Port pour l'interface d'administration de Kong
+      - '8444:8444' # Port HTTPS pour l'interface d'administration de Kong
+    depends_on:
+      - voicevista-db
+      - message-queue
+      - auth-service
+      - messaging-service
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: voicevista-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PG_DATABASE: kong
+
+volumes:
+  pg_data:
