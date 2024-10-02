@@ -12,11 +12,12 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 from injector import Binder
 
 from domain.interfaces.user_service_interface import UserServiceInterface
-from domain.services.user_services import UserService
-from infrastructure.interfaces.user_repository_interface import UserRepositoryInterface
+from domain.interfaces.user_repository_interface import UserRepositoryInterface
+from application.services.user_service import UserService
 from infrastructure.repositories.django_user_repository import DjangoUserRepository
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -43,9 +44,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework_simplejwt',
     'django_injector',
     'domain',
     'infrastructure',
+    'application',
+
     # 'infrastructure.apps.InfrastructureConfig',
 ]
 
@@ -142,3 +147,18 @@ def configure(binder: Binder) -> Binder:
 INJECTOR_MODULES = [
     'auth_service.settings.configure',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+}

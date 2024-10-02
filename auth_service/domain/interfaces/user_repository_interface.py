@@ -9,3 +9,7 @@ class UserRepositoryInterface(ABC):
     @abstractmethod
     def exists_by_email(self, email: str) -> bool:
         pass
+
+    @abstractmethod
+    def find_by_email(self, email: str):
+        pass
