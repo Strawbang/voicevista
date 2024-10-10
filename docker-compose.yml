@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   adminer:
     image: adminer
@@ -9,15 +8,84 @@ services:
       - voicevista-db
     environment:
       ADMINER_DEFAULT_SERVER: voicevista-db
+    networks:
+      - voicevista-network
 
   voicevista-db:
     image: postgres:13
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./create_databases.sh:/docker-entrypoint-initdb.d/create_databases.sh
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: example
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      retries: 5
+    networks:
+      - voicevista-network
+
+  auth-service:
+    build:
+      context: ./authService
+    command: ['sh', './start.sh']
+    ports:
+      - '8003:8000'
+    environment:
       POSTGRES_DB: voicevista
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: example
+      DB_HOST: voicevista-db
+      DB_PORT: 5432
+    depends_on:
+      voicevista-db:
+        condition: service_healthy
+    volumes:
+      - ./authService:/app
+    networks:
+      - voicevista-network
+
+  kong-migrations:
+    image: kong:3.8.0
+    command: ['kong', 'migrations', 'bootstrap']
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: voicevista-db
+      KONG_PG_USER: postgres
+      KONG_PG_PASSWORD: example
+      KONG_PG_DATABASE: kong
+    depends_on:
+      voicevista-db:
+        condition: service_healthy
+    networks:
+      - voicevista-network
+
+  api-gateway:
+    image: kong:3.8.0
+    ports:
+      - '8000:8000'
+      - '8001:8001'
+      - '8002:8002'
+      - '8443:8443'
+      - '8444:8444'
+    depends_on:
+      voicevista-db:
+        condition: service_healthy
+      kong-migrations:
+        condition: service_completed_successfully
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: voicevista-db
+      KONG_PG_USER: postgres
+      KONG_PG_PASSWORD: example
+      KONG_PG_DATABASE: kong
+      KONG_ADMIN_LISTEN: '0.0.0.0:8001, 0.0.0.0:8444 ssl'
+      # KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+    networks:
+      - voicevista-network
+    # volumes:
+    #   - ./kong.yml:/etc/kong/kong.yml
 
   # frontend:
   #   build:
@@ -36,23 +104,6 @@ services:
   #     RABBITMQ_DEFAULT_USER: user
   #     RABBITMQ_DEFAULT_PASS: password
 
-  auth-service:
-    build:
-      context: ./auth_service
-    command: ['sh', './start.sh']
-    ports:
-      - '8000:8000'
-    environment:
-      POSTGRES_DB: voicevista
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: example
-      DB_HOST: voicevista-db
-      DB_PORT: 5432
-    depends_on:
-      - voicevista-db
-    volumes:
-      - ./auth_service:/app
-
   # messaging-service:
   #   image: your-messaging-service-image
   #   ports:
@@ -62,24 +113,21 @@ services:
   #     SPRING_DATASOURCE_USERNAME: postgres
   #     SPRING_DATASOURCE_PASSWORD: example
 
-  # api-gateway:
-  #   image: kong:3.0.0
-  #   ports:
-  #     - '8000:8000' # Port pour les requêtes API publiques
-  #     - '8443:8443' # Port HTTPS pour les requêtes API publiques
-  #     - '8001:8001' # Port pour l'interface d'administration de Kong
-  #     - '8444:8444' # Port HTTPS pour l'interface d'administration de Kong
-  #   depends_on:
-  #     - voicevista-db
-  #     - message-queue
-  #     - auth-service
-  #     - messaging-service
-  #   environment:
-  #     KONG_DATABASE: postgres
-  #     KONG_PG_HOST: voicevista-db
-  #     KONG_PG_USER: kong
-  #     KONG_PG_PASSWORD: kong
-  #     KONG_PG_DATABASE: kong
+  kong-init:
+    image: curlimages/curl:latest
+    depends_on:
+      - api-gateway
+    command: >
+      sh -c "
+        until curl -s -X POST http://api-gateway:8001/services/ --data 'name=auth-service' --data 'url=http://auth-service:8000'; do sleep 2; done &&
+        curl -s -X POST http://api-gateway:8001/services/auth-service/routes --data 'paths[]=/auth' --data 'strip_path=true' --data 'name=auth-route'
+      "
+    networks:
+      - voicevista-network
+
+networks:
+  voicevista-network:
 
 volumes:
   pg_data:
+  konga_data:

@@ -1,0 +1,74 @@
+openapi: 3.0.0
+info:
+  title: Auth Service API
+  description: API for user authentication and registration
+  version: 1.0.0
+servers:
+  - url: http://auth-service:8000
+paths:
+  /register:
+    post:
+      summary: Register a new user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: user1
+                password:
+                  type: string
+                  example: securepassword
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Bad request (e.g., username already taken)
+        '500':
+          description: Internal server error
+
+  /login:
+    post:
+      summary: Log in an existing user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: user1
+                password:
+                  type: string
+                  example: securepassword
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '401':
+          description: Unauthorized (invalid credentials)
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid input"

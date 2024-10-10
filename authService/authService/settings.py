@@ -45,13 +45,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_yasg',
     'rest_framework_simplejwt',
     'django_injector',
     'domain',
     'infrastructure',
     'application',
-
-    # 'infrastructure.apps.InfrastructureConfig',
 ]
 
 MIDDLEWARE = [
@@ -64,7 +63,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'auth_service.urls'
+ROOT_URLCONF = 'authService.urls'
 
 TEMPLATES = [
     {
@@ -82,7 +81,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'auth_service.wsgi.application'
+WSGI_APPLICATION = 'authService.wsgi.application'
 
 
 # Database
@@ -145,13 +144,14 @@ def configure(binder: Binder) -> Binder:
     binder.bind(UserRepositoryInterface, to=DjangoUserRepository)
 
 INJECTOR_MODULES = [
-    'auth_service.settings.configure',
+    'authService.settings.configure',
 ]
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'
 }
 
 SIMPLE_JWT = {

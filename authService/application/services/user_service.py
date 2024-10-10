@@ -1,5 +1,5 @@
 import hashlib
-from auth_service import settings
+from authService import settings
 from injector import inject
 import jwt 
 from datetime import datetime, timedelta
